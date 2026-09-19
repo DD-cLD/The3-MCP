@@ -1,4 +1,4 @@
-# ma3-share — v0.1 "Ground Floor"
+# ma3-share release notes
 
 Tooling, workflows and attested console knowledge for AI-assisted grandMA3
 programming. Verified on **grandMA3 onPC 2.4.2.2 (Mac)**, 2026.
@@ -7,6 +7,33 @@ Code Apache-2.0 · docs CC BY 4.0 · © 2026 Alchemease LLC.
 Ground floor, not a roof. Unfinished by design.
 
 ---
+
+## Unreleased
+
+- Added a provider-neutral agent entry point, portable `ma3-assistant` skill,
+  and guide for Codex, Claude Desktop, other local MCP hosts, and chat-only use.
+  Legacy skills now identify their missing show-specific inputs; fixed invalid
+  YAML in the session skill and removed misleading self-contained claims.
+- Added an offline stdio MCP interoperability check. Optional unshipped manual
+  and API resources default to null; the included corpus resolves from config.
+- Server 0.2.2: fixed `serve --config`, plugin verification's query signature,
+  and strict safety-mode validation. All caller-supplied Lua is Tier 3; dry-run
+  refuses it, supervised modes require a fresh operator interlock plus exact
+  one-use approval. CLI `query` now refuses ungated arbitrary execution.
+- Manifest paths use portable forward slashes. Lua send results now report
+  actual UDP-send failure rather than claiming a send succeeded.
+- Approval keys preserve internal whitespace in quoted strings and code.
+  Plugin import checks reject occupied slots, verify the imported name before
+  optional execution, and report verification failures as failures.
+- Validation: clean Python 3.13 install with FastMCP 3.4.7; **144 tests passed,
+  3 skipped** (optional manual index absent); real stdio client discovered 16
+  tools, retrieved a concept body, and verified dry-run refusal. Index parse-back
+  361/361; portable skill metadata and entrypoint links checked.
+- Verification is offline software/protocol testing, not renewed live-console
+  attestation or certification of every agent host. The original v0.1 release
+  and its archive remain unchanged; use current main for these corrections.
+
+## v0.1 "Ground Floor" — 2026-09-19
 
 ## Read before you run
 

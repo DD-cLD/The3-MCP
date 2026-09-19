@@ -18,6 +18,9 @@ the one an expert would design for me.
 
 ---
 
+For a new agent or host, start with [the portable guide](../docs/AGENT_QUICKSTART.md).
+It defines corpus-only use, host setup, and how to adapt missing historical files.
+
 ## 0 · The premise
 
 **You are not expected to know MA3. You ARE expected to look it up before acting.**
@@ -39,7 +42,7 @@ omission.
 
 | rank | source | reach it with | authority |
 |---|---|---|---|
-| 1 | **The live console** | `send_lua` (read-only expression) · `resolve_object_address` · `get_showfile_snapshot` | Beats everything, including this file. A readback is evidence; a document is a claim. |
+| 1 | **The live console** | operator-authorized `send_lua` (all raw Lua is gated) · `resolve_object_address` · `get_showfile_snapshot` | Beats everything, including this file. A readback is evidence; a document is a claim. |
 | 2 | **`concepts/`** | `concept_lookup(keyword)` | Why a rule exists, what its edge is, what broke. Paid for in failures. |
 | 3 | **The MA3 manual** | `manual_lookup(keyword)` | Official vocabulary and intended behaviour. Note: intended ≠ observed. Where they differ, §2 wins and a concept usually records the gap. |
 | 4 | **Your own reasoning** | — | Last. And when you rely on it, **say so out loud** and mark the claim unverified. |
@@ -49,8 +52,12 @@ confidently about a console it has not read.
 
 ## 2 · The boot sequence — every session, in order
 
-### Step 0 · Check the wire
-`get_console_info()`.
+### Step 0 · Choose the mode
+For corpus-only or file-side work, skip the wire check and search `concepts/INDEX.md`
+directly (or use already-configured `concept_lookup`). No console is required.
+For operator-requested console work only, call `get_console_info()`. The liveness
+field is nested at `probe.lua_roundtrip_ok`. Generic `send_lua`, including apparent
+reads, is now Tier 3 and requires the supervised gates described in the guide.
 
 🔴 **`udp_sent` is NOT liveness.** UDP is connectionless — a fully closed onPC
 still returns `udp_sent: true`. The liveness bit is **`lua_roundtrip_ok`**, which

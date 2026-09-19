@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gma3-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "MCP server exposing grandMA3 console/onPC control. Implements MA3_MCP_Server_Spec_v2.1."
 readme = "README.md"
 authors = [{ name = "Alchemease LLC" }]

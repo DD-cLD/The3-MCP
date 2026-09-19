@@ -198,12 +198,12 @@ def install_plugin_flow(
     run_after: bool,
     install_dir: str,
     send_cmd: Callable[[str], None],
-    query: Callable[[str, float], object] | None,
+    query: Callable[..., object] | None,
     governor: InstallGovernor,
     deny_words: list[str] | None = None,
     data_version: str = "2.4.2.2",
 ) -> InstallResult:
-    """Execute the live install: write pair → ReloadAllPlugins → Import → (run).
+    """Check empty slot → write pair → reload/import → verify → optional run.
 
     Callers MUST have already passed tier gating (dry_run block + confirm_gate).
     Raises nothing on console errors — OSC is fire-and-forget; the verify step
@@ -227,6 +227,18 @@ def install_plugin_flow(
     if wait > 0:
         return InstallResult(ok=False, error=f"install cooldown: wait {wait:.1f}s (spec §5.8, ≥{governor.cooldown_seconds:.0f}s between installs)")
 
+    if slot is not None:
+        if query is None:
+            return InstallResult(ok=False, error="slot installs require a round-trip query to verify an empty slot")
+        try:
+            before = query(f"tostring(ObjectList('Plugin {slot}')[1] ~= nil)", timeout=4.0)
+        except Exception as e:
+            return InstallResult(ok=False, error=f"slot preflight failed (no install changes made): {e}")
+        if not (getattr(before, "roundtrip_ok", False) and getattr(before, "ok", False)):
+            return InstallResult(ok=False, error="slot preflight could not verify occupancy; no install changes made")
+        if getattr(before, "value", None) != "false":
+            return InstallResult(ok=False, error=f"slot {slot} is occupied or its state is unknown; choose a verified empty slot")
+
     res = InstallResult(ok=True)
     folder = Path(install_dir) / name
     lua_path = folder / f"{name}.lua"
@@ -245,7 +257,9 @@ def install_plugin_flow(
     res.wrote = [str(lua_path), str(xml_path)]
     res.steps.append({"step": "write_pair", "ok": True, "paths": res.wrote})
 
-    for cmd in plan_steps(name, slot, run_after):
+    # Never run until the Import has been verified. UDP success alone cannot
+    # tell us whether the requested plugin reached the pool slot.
+    for cmd in plan_steps(name, slot, False):
         try:
             send_cmd(cmd)
             res.steps.append({"step": cmd, "sent": True})
@@ -263,16 +277,34 @@ def install_plugin_flow(
         # THIS plugin's name, or an agent could later run the wrong plugin.
         # Premise (console-verify list #7): imported pool object Name == folder name.
         lua = f"tostring(ObjectList('Plugin {slot}')[1] and ObjectList('Plugin {slot}')[1].Name)"
-        r = query(lua, 4.0)
+        try:
+            r = query(lua, timeout=4.0)
+        except Exception as e:
+            res.ok = False
+            res.error = f"post-import verification failed; plugin was not run: {e}"
+            return res
         value = getattr(r, "value", None)
         res.verify = {
             "roundtrip_ok": getattr(r, "roundtrip_ok", False),
             "slot_object_name": value,
             "expected_name": name,
-            "materialized": bool(getattr(r, "ok", False) and value == name),
+            "materialized": bool(getattr(r, "roundtrip_ok", False) and getattr(r, "ok", False) and value == name),
         }
         if getattr(r, "ok", False) and value not in (None, "nil", name):
             res.verify["warning"] = f"slot {slot} holds {value!r}, not {name!r} — likely occupied before Import (Import does not overwrite)"
+        if not res.verify["materialized"]:
+            res.ok = False
+            res.error = "post-import verification did not confirm the requested plugin; plugin was not run"
+            return res
+        if run_after:
+            cmd = f"Plugin {slot}"
+            try:
+                send_cmd(cmd)
+                res.steps.append({"step": cmd, "sent": True})
+            except Exception as e:
+                res.steps.append({"step": cmd, "sent": False, "error": str(e)})
+                res.ok = False
+                res.error = f"send failed at {cmd!r}: {e}"
     return res
 
 
@@ -295,7 +327,7 @@ def gated_install(
     approvals,  # duck-typed: .consume(command, tier) -> bool
     governor: InstallGovernor,
     send_cmd: Callable[[str], None],
-    query: Callable[[str, float], object] | None,
+    query: Callable[..., object] | None,
     lock: threading.Lock | None = None,
     data_version: str = "2.4.2.2",
 ) -> dict:
@@ -360,7 +392,7 @@ def gated_install(
             deny_words=deny_words, data_version=data_version,
         )
     return {
-        **base, "sent": r.ok, "ok": r.ok, "error": r.error,
+        **base, "sent": any(step.get("sent", False) for step in r.steps), "ok": r.ok, "error": r.error,
         "steps": r.steps, "wrote": r.wrote, "verify": r.verify,
     }
 

@@ -3,6 +3,18 @@ name: ma3-phaser-workup
 description: The {TOUR} per-song phaser chain — read {LD}'s figures (X AND Y, unfiltered), pool-block census, copy-source via content hash with per-song minting, Speed Scale gears, MAtricks spread. Use whenever a song's phasers are read, minted, gauged, or bound. Triggers on phaser, figure, pool 21, FIGURES sheet, decode, copy source, Speed Scale, gear, MAtricks, MX, spread, X and Y.
 ---
 
+> **Historical workflow reference.** This file records the original show's
+> session or authoring procedure. Start with
+> [the portable agent quickstart](../docs/AGENT_QUICKSTART.md) and
+> `skills/ma3-assistant/SKILL.md` for a new agent or show. Keep your own identity;
+> `cLD`/Claude and Dave describe historical roles, not required products or users.
+> The quickstart translates the old `WORKING/`, `agents/`, and `generated/`
+> paths. Private memory/state files, show packets, bindings, and golden exports
+> named below are not supplied: use the operator's actual inputs and report
+> missing prerequisites. Show-specific slot numbers and fixture populations are
+> examples, not addresses to copy. The console clearance, checkpoint, and
+> read-back gates still apply; this reference does not authorize console contact.
+
 # MA3 Phaser Workup — read → copy → gears → MX
 
 The chain that eats sessions when a detail slips (Dave, 08-05: "the toughest part

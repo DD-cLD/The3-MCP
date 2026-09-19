@@ -3,6 +3,18 @@ name: ma3-macro-gate
 description: Authoring gate for grandMA3 macro XML. Use BEFORE writing, editing, regenerating, or verifying ANY MA3 macro XML file or builder macro — including quick label fixes. Triggers on macro XML, MacroLine, builder macro, Import Macro, quote dialect, &quot; escaping, cld builder files.
 ---
 
+> **Historical workflow reference.** This file records the original show's
+> session or authoring procedure. Start with
+> [the portable agent quickstart](../docs/AGENT_QUICKSTART.md) and
+> `skills/ma3-assistant/SKILL.md` for a new agent or show. Keep your own identity;
+> `cLD`/Claude and Dave describe historical roles, not required products or users.
+> The quickstart translates the old `WORKING/`, `agents/`, and `generated/`
+> paths. Private memory/state files, show packets, bindings, and golden exports
+> named below are not supplied: use the operator's actual inputs and report
+> missing prerequisites. Show-specific slot numbers and fixture populations are
+> examples, not addresses to copy. The console clearance, checkpoint, and
+> read-back gates still apply; this reference does not authorize console contact.
+
 # MA3 Macro Authoring Gate
 
 This gate exists because on 2026-07-23 a session authored macro XML twice with the exact quote-dialect fix sitting filed and unopened in the corpus — the import shredded silently and cost a desk session. The gate is structural: no macro XML gets touched until the dialect is armed. (Repo law: `WORKING/AGENT_LANES_SPEC_v0.1.md`; paths below are relative to the MA_PROGRAMMING repo's `WORKING/` folder.)

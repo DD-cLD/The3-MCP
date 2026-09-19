@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -75,12 +75,12 @@ class Ma3Config(BaseModel):
 
 
 class SafetyConfig(BaseModel):
-    default_mode: str = "dry_run"
+    default_mode: Literal["dry_run", "rehearsal", "live"] = "dry_run"
     require_confirm_for_tier2: bool = True
     require_confirm_for_tier3: bool = True
     elicitation_first: bool = True
     live_enable_file: str | None = None
-    live_enable_freshness_seconds: int = 60
+    live_enable_freshness_seconds: int = Field(default=60, gt=0)
     approval_ttl_seconds: int = 300
     # SaveShow deliberately absent since 2026-07-04 — Tier 2 via prefix classifier
     deny_commands: list[str] = Field(default_factory=lambda: ["LoadShow", "Delete User", "Network", "Reset"])

@@ -1,23 +1,23 @@
 """Time-boxed, single-shot approvals for Tier 2/3 commands (spec §5 confirm_gate).
 
-Model: the operator (Dave — usually relayed through cLD) grants approval for ONE
+Model: the operator grants approval for ONE
 exact command string. The grant expires after `ttl_seconds` (config
 `safety.approval_ttl_seconds`, default 300) and is consumed by first use.
 dry_run mode never consults approvals — its block is absolute.
 
 Exact-match by design: a grant for `Lua "Store Preset 4.106"` approves that
-string and nothing else. Whitespace is normalized; nothing else is fuzzy.
+string and nothing else. Only surrounding whitespace is ignored; interior
+whitespace can change quoted Lua values and is preserved exactly.
 """
 from __future__ import annotations
 
-import re
 import secrets
 import time
 from dataclasses import dataclass, field
 
 
 def _normalize(command: str) -> str:
-    return re.sub(r"\s+", " ", command.strip())
+    return command.strip()
 
 
 @dataclass

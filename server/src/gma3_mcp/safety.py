@@ -1,7 +1,10 @@
-"""Tier classifier + confirm-gate stub.
+"""Conservative command tiers for the confirmation gate.
 
 Per MA3_MCP_Server_Spec_v2.1 §5: every command string passes through a
 classifier before transport. Defaults are deny-on-unknown for writes.
+Caller-supplied Lua always requires the highest confirmation tier: text
+matching cannot establish what arbitrary Lua will execute. This classifier
+is a workflow guard, not a Lua sandbox or an authorization boundary.
 """
 from __future__ import annotations
 
@@ -37,11 +40,11 @@ _DELETE = re.compile(r"^\s*Delete\b", re.I)
 # have sailed through send_lua ungated — in dry_run too. Deny at the
 # classifier so every present and future tool inherits the ban.
 _GPDF = re.compile(r"GetPresetDataFast", re.I)
+_LUA = re.compile(r"^Lua\b", re.I)
 
 
 def classify(command: str, deny_list: list[str] | None = None) -> Classification:
     cmd = command.strip()
-    lo = cmd.lower()
 
     if _GPDF.search(cmd):
         return Classification(
@@ -65,21 +68,17 @@ def classify(command: str, deny_list: list[str] | None = None) -> Classification
     if _DELETE.match(cmd):
         return Classification(tier=2, reason="Delete-style mutation", needs_confirm=True, matched_rule="delete")
 
-    if cmd.startswith("Lua "):
-        # Lua is a read-channel by convention if the snippet just uses Printf/ObjectList/GetPath
-        # — but conservative: classify as 1 unless it contains Cmd("...") with a Tier 2+ op.
-        for p in _TIER_3_PREFIXES:
-            if p in cmd:
-                return Classification(tier=3, reason=f"Lua wraps Tier-3 op {p!r}", needs_confirm=True, matched_rule="lua-fires")
-        for p in _TIER_2_PREFIXES:
-            if p in cmd:
-                return Classification(tier=2, reason=f"Lua wraps Tier-2 op {p!r}", needs_confirm=True, matched_rule="lua-stores")
-        # Lua API write functions — prefix rules miss these ("Set " has a
-        # trailing space; "SetVar(" doesn't). Found live 2026-07-04.
-        for fn in ("SetVar(", "DelVar(", "CreateUndo(", "Delete(", "Acquire(", "SetAttribute(", "SetFader("):
-            if fn in cmd:
-                return Classification(tier=2, reason=f"Lua calls write API {fn!r}", needs_confirm=True, matched_rule="lua-api-write")
-        return Classification(tier=1, reason="Lua read-channel (Printf/ObjectList/GetPath)", needs_confirm=False, matched_rule="lua-read")
+    if _LUA.match(cmd):
+        # Even an apparently read-only expression can call aliases, construct
+        # commands dynamically, or invoke an object method with side effects.
+        # Dedicated read tools construct their own fixed queries; arbitrary
+        # Lua gets no read-only exemption based on regex inspection.
+        return Classification(
+            tier=3,
+            reason="caller-supplied Lua may mutate show or live state; operator review required",
+            needs_confirm=True,
+            matched_rule="lua-arbitrary",
+        )
 
     for p in _TIER_3_PREFIXES:
         if cmd.startswith(p):

@@ -38,7 +38,7 @@ def walk_files(root):
             rel = os.path.relpath(p, root)
             if rel.replace(os.sep, '/') in NEVER_SHIP:
                 continue
-            out.append(rel)
+            out.append(rel.replace(os.sep, "/"))
     return sorted(out)
 
 

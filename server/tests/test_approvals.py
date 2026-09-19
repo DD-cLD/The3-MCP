@@ -17,12 +17,27 @@ def test_grant_then_consume_single_shot():
     assert r.consume('Lua "Store Preset 4.106"', tier=2) is False
 
 
-def test_consume_requires_exact_command_modulo_whitespace():
+def test_consume_ignores_only_surrounding_whitespace():
     r = ApprovalRegistry()
-    r.grant('Lua  "Store   Preset 4.106"')
+    r.grant('  Lua "Store Preset 4.106"  ')
     assert r.consume('Lua "Store Preset 4.106"', tier=2) is True
     r.grant('Lua "Store Preset 4.106"')
     assert r.consume('Lua "Store Preset 4.107"', tier=2) is False
+
+
+def test_approval_preserves_whitespace_inside_lua_strings():
+    r = ApprovalRegistry()
+    command = "Lua \"ObjectList('Sequence named  with  spaces')[1]:Addr()\""
+    r.grant(command, tier_max=3)
+    assert r.consume(command.replace('  ', ' '), tier=3) is False
+    assert r.consume(command, tier=3) is True
+
+
+def test_approval_preserves_whitespace_between_tokens_too():
+    r = ApprovalRegistry()
+    r.grant('Lua  "Printf(1)"', tier_max=3)
+    assert r.consume('Lua "Printf(1)"', tier=3) is False
+    assert r.consume('Lua  "Printf(1)"', tier=3) is True
 
 
 def test_expired_grant_is_rejected_and_pruned():
@@ -44,7 +59,8 @@ def test_revoke_and_pending_view():
     r = ApprovalRegistry(ttl_seconds=300)
     r.grant("Store Macro 11")
     assert len(r.pending()) == 1
-    assert r.revoke("Store  Macro 11") is True
+    assert r.revoke("Store  Macro 11") is False
+    assert r.revoke(" Store Macro 11 ") is True
     assert r.pending() == []
     assert r.revoke("Store Macro 11") is False
 
@@ -68,21 +84,24 @@ def test_import_plugin_is_tier2():
 
 def test_lua_wrapping_reload_escalates():
     c = classify("Lua \"Cmd('ReloadAllPlugins')\"")
-    assert c.tier == 2
+    assert c.tier == 3
+    assert c.needs_confirm
 
 
 def test_preset_reads_still_pass_word_boundary_deny():
     # regression guard for the substring "Reset"-blocks-"Preset" bug
     c = classify("Lua \"tostring(ObjectList('Preset 4.101')[1]:Addr())\"", deny_list=["Reset"])
-    assert c.tier == 1
+    assert c.tier == 3
+    assert c.matched_rule == "lua-arbitrary"
 
 
-def test_lua_setvar_is_tier2_write():
+def test_lua_setvar_requires_tier3_review():
     c = classify("Lua \"SetVar(UserVars(),'x',1)\"")
-    assert c.tier == 2
-    assert c.matched_rule == "lua-api-write"
+    assert c.tier == 3
+    assert c.matched_rule == "lua-arbitrary"
 
 
-def test_lua_getvar_read_stays_tier1():
+def test_lua_getvar_also_requires_tier3_review():
     c = classify("Lua \"tostring((GetVar(UserVars(),'x')))\"")
-    assert c.tier == 1
+    assert c.tier == 3
+    assert c.needs_confirm

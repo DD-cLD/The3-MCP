@@ -114,7 +114,7 @@ def test_body_missing_file_is_error_not_raise(concepts_dir):
 
 # ---------- census against the REAL knowledge base (skips off-checkout) ----------
 
-REAL_CONCEPTS = Path(__file__).resolve().parents[3] / "WORKING" / "concepts"
+REAL_CONCEPTS = Path(__file__).resolve().parents[2] / "concepts"
 
 
 @pytest.mark.skipif(not (REAL_CONCEPTS / "INDEX.md").exists(), reason="real concepts dir not in this checkout")

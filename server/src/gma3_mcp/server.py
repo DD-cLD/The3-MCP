@@ -50,9 +50,12 @@ def build_app(cfg: Config | None = None) -> FastMCP:
 
     mcp = FastMCP(
         name="gma3-mcp",
+        version=__version__,
         instructions=(
             "MCP server exposing grandMA3 console/onPC control. "
-            "Implements MA3_MCP_Server_Spec_v2.1. "
+            "Use concept_lookup for corpus-only work; console contact requires operator authorization. "
+            "Caller-supplied Lua is Tier 3 and needs supervised mode, a fresh operator interlock, "
+            "and exact approval. Tools do not independently authenticate human consent. "
             f"Target: {cfg.ma3.target_name} at {cfg.ma3.host}. "
             f"Default mode: {cfg.safety.default_mode}."
         ),
@@ -92,7 +95,7 @@ def build_app(cfg: Config | None = None) -> FastMCP:
         }
 
     @mcp.tool(
-        annotations={"readOnlyHint": False, "idempotentHint": True, "openWorldHint": True},
+        annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True},
     )
     def send_lua(code: str, want_result: bool = True, timeout: float = 4.0) -> dict:
         """Run Lua on the console.
@@ -104,9 +107,12 @@ def build_app(cfg: Config | None = None) -> FastMCP:
         only — no execution proof).
 
         Transport rules either way: single line, single quotes only (no `"`),
-        no `;`, no backslashes. Classified before send: read-only Lua is
-        Tier 1; embedded Store/Go+/etc. escalates to Tier 2/3 and is blocked
-        in dry_run mode."""
+        no `;`, no backslashes. ALL caller-supplied Lua is Tier 3 because an
+        expression can mutate state or fire playback. dry_run blocks it.
+        In rehearsal/live mode, every call requires a fresh operator-created
+        live-enable file AND a single-shot exact confirm_gate approval,
+        regardless of require_confirm flags. Use get_console_info or
+        resolve_object_address for fixed read queries."""
         wrapped = f'Lua "{code}"'
         cls = classify(wrapped, cfg.safety.deny_commands)
         if cls.tier == 99:
@@ -116,20 +122,32 @@ def build_app(cfg: Config | None = None) -> FastMCP:
                 "sent": False, "tier": cls.tier, "reason": cls.reason,
                 "dry_run": True, "wrapped_cmd": wrapped,
             }
-        # Supervised modes: Tier 2/3 needs a fresh confirm_gate grant (§5).
-        needs = (cls.tier == 2 and cfg.safety.require_confirm_for_tier2) or (
-            cls.tier == 3 and cfg.safety.require_confirm_for_tier3
-        )
-        if cls.tier >= 2 and needs and not approvals.consume(wrapped, cls.tier):
+        try:
+            validate_expr(code)
+        except ValueError as e:
+            return {"sent": False, "tier": cls.tier, "error": f"transport-unsafe Lua: {e}"}
+        # Arbitrary Lua has full console capability. Neither a permissive
+        # confirmation flag nor rehearsal mode may bypass this interlock.
+        enable_path = cfg.safety.live_enable_file
+        try:
+            enabled = bool(enable_path) and Path(enable_path).is_file()
+            age = time.time() - Path(enable_path).stat().st_mtime if enabled else None
+        except OSError:
+            age = None
+        if age is None or not 0 <= age <= cfg.safety.live_enable_freshness_seconds:
+            return {
+                "sent": False, "tier": cls.tier, "needs_live_enable": True,
+                "wrapped_cmd": wrapped,
+                "error": "arbitrary Lua requires a fresh operator-created live-enable file",
+                "live_enable_file": enable_path,
+                "freshness_seconds": cfg.safety.live_enable_freshness_seconds,
+            }
+        if not approvals.consume(wrapped, cls.tier):
             return {
                 "sent": False, "tier": cls.tier, "reason": cls.reason,
                 "needs_confirm": True, "wrapped_cmd": wrapped,
                 "hint": f"call confirm_gate(command={wrapped!r}, approve=True) after operator sign-off, then resend within the TTL",
             }
-        try:
-            validate_expr(code)
-        except ValueError as e:
-            return {"sent": False, "tier": cls.tier, "error": f"transport-unsafe Lua: {e}"}
         if not want_result:
             try:
                 osc.send_cmd(wrapped)
@@ -141,7 +159,8 @@ def build_app(cfg: Config | None = None) -> FastMCP:
             }
         r = rt.query(code, timeout=timeout)
         return {
-            "sent": True, "tier": cls.tier, "reason": cls.reason,
+            "sent": r.udp_sent, "udp_sent": r.udp_sent,
+            "tier": cls.tier, "reason": cls.reason,
             "roundtrip_ok": r.roundtrip_ok, "ok": r.ok, "value": r.value,
             "rtt_ms": r.rtt_ms, "error": r.error,
         }
@@ -275,7 +294,7 @@ def build_app(cfg: Config | None = None) -> FastMCP:
     @mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False})
     def confirm_gate(command: str, approve: bool = True, ttl_seconds: int | None = None) -> dict:
         """Grant (or revoke) a time-boxed, single-shot approval for ONE exact
-        Tier-2/3 command string — call this only after the operator (Dave)
+        Tier-2/3 command string — call this only after the operator
         explicitly signed off on that command.
 
         The grant expires after ttl_seconds (default: config
@@ -328,9 +347,9 @@ def build_app(cfg: Config | None = None) -> FastMCP:
         slot: int | None = None,
         run_after: bool = False,
     ) -> dict:
-        """Tier 2: full plugin install — write the .lua/.xml pair into
-        plugin_install_dir/<name>/, then ReloadAllPlugins → Import Plugin
-        <slot> "<name>" → optionally Plugin <slot> (one-shot run).
+        """Tier 2: full plugin install — verify an empty slot, write the
+        .lua/.xml pair into plugin_install_dir/<name>/, then ReloadAllPlugins
+        → Import Plugin <slot> "<name>" → verify → optional one-shot run.
 
         Gated: dry_run blocks absolutely (returns a full preview incl. the
         generated XML and the gate command); supervised mode needs a fresh
@@ -339,8 +358,9 @@ def build_app(cfg: Config | None = None) -> FastMCP:
         slot=None writes files only (no pool changes). run_after runs Main()
         then auto-Cleanup — one-shot semantics; persistent plugins are
         activated via the pool Toggle action instead (attended). Import needs
-        an EMPTY slot; ≥5 s cooldown between installs. Verify block reads the
-        pool slot back over the Lua round-trip."""
+        an EMPTY slot; ≥5 s cooldown between installs. Slot installs require
+        successful round-trip preflight and post-import read-back. A failed
+        read-back reports ok=false and never runs the pool slot."""
         return _install(name, lua_source, xml_source, slot, run_after)
 
     @mcp.tool(annotations={"destructiveHint": True, "idempotentHint": False})
@@ -350,7 +370,7 @@ def build_app(cfg: Config | None = None) -> FastMCP:
         install_plugin. Never auto-runs: `Plugin <slot>` would register state
         into a lifecycle that auto-Cleanups (concept plugin-lifecycle-autocleanup).
 
-        ACTIVATION IS ATTENDED: after import, Dave toggles the plugin in the
+        ACTIVATION IS ATTENDED: after import, the operator toggles the plugin in the
         pool (Toggle keeps state alive). `Toggle Plugin <slot>` as CLI syntax
         is UNVERIFIED — do not send it; it is on the console-verify queue.
         Then hook_add/hook_remove/hook_list talk to _G.alchemease_hooks_api."""
@@ -414,10 +434,10 @@ def build_app(cfg: Config | None = None) -> FastMCP:
     return mcp
 
 
-def main_serve(transport: str = "stdio", port: int = 8765) -> None:
+def main_serve(transport: str = "stdio", port: int = 8765, cfg: Config | None = None) -> None:
     """Entry: build app, run on chosen transport."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    app = build_app()
+    app = build_app(cfg)
     if transport == "stdio":
         app.run()  # stdio is the default FastMCP runtime
     elif transport == "streamable-http":

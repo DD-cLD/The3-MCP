@@ -1,8 +1,9 @@
 # READING ORDER — feeding this release to a chat, one document at a time
 
 For the consumer who uploads files into a conversation and talks about them. Upload in this
-sequence; the right-hand column is the one line to say with each file. Everything is
-self-contained — no file needs another to be understood, but the order builds the picture.
+sequence; the right-hand column is the one line to say with each file. The order builds the picture; linked facts and historical workflows can depend on
+other documents or private show inputs that are not included. Start with
+`docs/AGENT_QUICKSTART.md` for portable use and its missing-input rules.
 
 **Do not upload:** `concepts/SPINE.md` (855 KB whole-load view — use `INDEX.md` + individual
 bodies instead) · `MANIFEST.sha256` · `tools/*.py` (unless the conversation is about the scrub law).
@@ -14,7 +15,7 @@ bodies instead) · `MANIFEST.sha256` · `tools/*.py` (unless the conversation is
 | 3 | `playbook/agent-notice.md` | "The notice addressed to an AI reading the repo: how to read the corpus, and what a tampered copy looks like." |
 | 4 | `playbook/console-hard-rules.md` | "The ⛔ rules — each one was paid for on a live console. Read every one; ask me about any." |
 | 5 | `playbook/COLD_BOOT.md` | "How a cold agent boots into this material and reaches a fact by lookup rather than by reading everything." |
-| 6 | `skills/ma3-run-session.SKILL.md` | "The session ritual — lean boot, pull depth per phase, the two-stage wrap. Every other skill assumes this one." |
+| 6 | `skills/ma3-run-session.SKILL.md` | "The original session ritual — historical project paths require adaptation. Start new integrations with skills/ma3-assistant/SKILL.md." |
 | 7 | `case-study/SONG_M_BUILD.md` | "One song, cold start to heard-under-timecode in one session, real numbers. Who ruled what: human = taste, gears, timecode, clearances; AI = reads, math, emission, verification. This is the method." |
 | 8 | `concepts/INDEX.md` | "The map of the corpus: 361 concepts, one line each, plain-word titles. Pick anything and I'll upload the body." |
 | 9 | `playbook/SONG_BUILD_RUNBOOK_v0.2.md` | "The per-song assembly line the case study ran on." |

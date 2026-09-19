@@ -143,8 +143,9 @@ def test_slot_reservation_warnings():
 # ---------- flow ----------
 
 def _fake_query_ok(name="foo"):
-    def q(lua, timeout):
-        return SimpleNamespace(roundtrip_ok=True, ok=True, value=name, rtt_ms=30.0, error=None)
+    def q(lua, *, timeout):
+        value = "false" if "~= nil" in lua else name
+        return SimpleNamespace(roundtrip_ok=True, ok=True, value=value, rtt_ms=30.0, error=None)
     return q
 
 
@@ -173,6 +174,63 @@ def test_flow_files_only_when_no_slot(tmp_path):
     assert r.ok and sent == ["ReloadAllPlugins"] and r.verify is None
 
 
+def test_flow_verifies_before_optional_run(tmp_path):
+    events = []
+
+    def query(lua, *, timeout):
+        preflight = "~= nil" in lua
+        events.append("preflight" if preflight else "verify")
+        return SimpleNamespace(roundtrip_ok=True, ok=True, value="false" if preflight else "foo")
+
+    result = install_plugin_flow(
+        name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=True,
+        install_dir=str(tmp_path), send_cmd=events.append, query=query,
+        governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
+    )
+    assert result.ok
+    assert events == ["preflight", "ReloadAllPlugins", 'Import Plugin 7 "foo"', "verify", "Plugin 7"]
+
+
+@pytest.mark.parametrize("state", ["occupied", "unreachable", "query-error", "no-query"])
+def test_flow_preflight_failure_prevents_install_changes(tmp_path, state):
+    sent = []
+
+    def query(lua, *, timeout):
+        if state == "query-error":
+            raise OSError("fake read failure")
+        return SimpleNamespace(roundtrip_ok=state != "unreachable", ok=True, value="true")
+
+    result = install_plugin_flow(
+        name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=True,
+        install_dir=str(tmp_path), send_cmd=sent.append,
+        query=None if state == "no-query" else query,
+        governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
+    )
+    assert not result.ok and result.error
+    assert sent == [] and list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("state", ["wrong-name", "empty", "timeout", "lua-error", "query-error"])
+def test_flow_failed_post_verify_never_runs_slot(tmp_path, state):
+    sent = []
+
+    def query(lua, *, timeout):
+        if "~= nil" in lua:
+            return SimpleNamespace(roundtrip_ok=True, ok=True, value="false")
+        if state == "query-error":
+            raise OSError("fake verify failure")
+        value = {"wrong-name": "other", "empty": "nil"}.get(state, "foo")
+        return SimpleNamespace(roundtrip_ok=state != "timeout", ok=state != "lua-error", value=value)
+
+    result = install_plugin_flow(
+        name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=True,
+        install_dir=str(tmp_path), send_cmd=sent.append, query=query,
+        governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
+    )
+    assert not result.ok and "not run" in result.error
+    assert sent == ["ReloadAllPlugins", 'Import Plugin 7 "foo"']
+
+
 def test_flow_refuses_gpdf_before_touching_disk(tmp_path):
     r = install_plugin_flow(
         name="killer", lua_source="GetPresetDataFast()", xml_source=None, slot=1,
@@ -197,14 +255,15 @@ def test_flow_respects_cooldown(tmp_path):
 
 
 def test_flow_verify_reports_empty_slot(tmp_path):
-    def q(lua, timeout):
-        return SimpleNamespace(roundtrip_ok=True, ok=True, value="nil", rtt_ms=30.0, error=None)
+    def q(lua, *, timeout):
+        value = "false" if "~= nil" in lua else "nil"
+        return SimpleNamespace(roundtrip_ok=True, ok=True, value=value, rtt_ms=30.0, error=None)
     r = install_plugin_flow(
         name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=False,
         install_dir=str(tmp_path), send_cmd=lambda c: None, query=q,
         governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
     )
-    assert r.ok and r.verify["materialized"] is False
+    assert not r.ok and r.verify["materialized"] is False
 
 
 def test_flow_send_failure_stops_sequence(tmp_path):
@@ -217,7 +276,7 @@ def test_flow_send_failure_stops_sequence(tmp_path):
 
     r = install_plugin_flow(
         name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=True,
-        install_dir=str(tmp_path), send_cmd=bad_send, query=None,
+        install_dir=str(tmp_path), send_cmd=bad_send, query=_fake_query_ok(),
         governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
     )
     assert not r.ok and "Import" in r.error
@@ -276,14 +335,15 @@ def test_xml_source_must_uphold_pair_contract(tmp_path):
 
 def test_verify_occupied_slot_reports_not_materialized(tmp_path):
     # M2: read-back finding a different occupant must NOT count as materialized
-    def q(lua, timeout):
-        return SimpleNamespace(roundtrip_ok=True, ok=True, value="squatter", rtt_ms=30.0, error=None)
+    def q(lua, *, timeout):
+        value = "false" if "~= nil" in lua else "squatter"
+        return SimpleNamespace(roundtrip_ok=True, ok=True, value=value, rtt_ms=30.0, error=None)
     r = install_plugin_flow(
         name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=False,
         install_dir=str(tmp_path), send_cmd=lambda c: None, query=q,
         governor=InstallGovernor(cooldown_seconds=0.0), deny_words=DENY,
     )
-    assert r.ok and r.verify["materialized"] is False
+    assert not r.ok and r.verify["materialized"] is False
     assert "occupied" in r.verify.get("warning", "")
 
 
@@ -328,7 +388,7 @@ def test_governor_marks_after_send_failure(tmp_path):
 
     install_plugin_flow(
         name="foo", lua_source=LUA_OK, xml_source=None, slot=7, run_after=False,
-        install_dir=str(tmp_path), send_cmd=bad_send, query=None,
+        install_dir=str(tmp_path), send_cmd=bad_send, query=_fake_query_ok(),
         governor=g, deny_words=DENY,
     )
     assert g.check() > 0

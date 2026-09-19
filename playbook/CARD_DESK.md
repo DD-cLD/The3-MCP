@@ -13,6 +13,11 @@ OK. It echoes clean. It returns success. None of that is evidence.
 
 ---
 
+> Portability update: generic `send_lua` is now always Tier 3. Historical notes
+> below about ungated Lua describe the earlier server. Current execution requires
+> supervised mode, a fresh operator interlock, and exact single-use approval.
+> See [the current guide](../docs/AGENT_QUICKSTART.md).
+
 ## ⛔ ABSOLUTE
 
 1. **Never call `GetPresetDataFast()`.** Segfaults onPC 2.4.2.2 on a freshly built preset/phaser — a C-side crash `pcall` cannot catch. Banned from all generated Lua. `gpdf-console-killer`

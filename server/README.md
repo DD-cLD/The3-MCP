@@ -2,7 +2,27 @@
 
 A Model Context Protocol server that exposes bounded grandMA3 console / onPC control to AI agents.
 
-Implements the v2.1 spec at `MA3_MCP_Server_Spec_v2.1.md` (OSC round-trip sections corrected 2026-07-04). The older TypeScript scaffold in `WORKING/gma3-mcp-server.zip` is superseded.
+Start with [the agent quickstart](../docs/AGENT_QUICKSTART.md) for Codex,
+Claude Desktop, other local MCP clients, and corpus-only use. The original design
+spec and private show scaffolds mentioned in historical notes are not shipped;
+this README, the guide, code, and tests describe the public package.
+
+## Unreleased — 0.2.2 portability and execution gates
+
+- Local stdio works independently of the model provider; an offline MCP check
+  verifies tool discovery and corpus lookup with `tools/check_mcp.py`.
+- `--config` now reaches `serve`; plugin install verification uses the real
+  keyword-only query interface. Optional unshipped resources default to null.
+- Every caller-supplied Lua expression is Tier 3. Dry-run blocks it; supervised
+  execution requires a fresh operator live-enable file and exact single-use
+  `confirm_gate` approval. CLI `query` refuses arbitrary Lua instead of bypassing
+  that approval path. Dedicated fixed read tools and `probe` remain available.
+- Approval matching preserves whitespace inside code/quoted values. Safety mode
+  spelling is validated. These controls support a trusted attended workflow;
+  they are not a sandbox or independent proof of human consent.
+
+The following version sections preserve historical receipts; current behavior
+above supersedes their references to generic Lua as an ungated read channel.
 
 ## v0.2.1 (2026-07-05) — post-review polish
 
@@ -34,17 +54,17 @@ a pointed error instead of corrupting the command.
 
 ## Tools
 
-Tier 0/1 (read + reversible):
+Fixed read/reversible tools:
 
 - `get_console_info()` — config + REAL liveness probe (round-trip + console identity)
-- `send_lua(code, want_result=True)` — expression → evaluated, value returned via round-trip; `want_result=False` → fire-and-forget statements (udp_sent only). Classified before send; GPDF denied at the classifier (tier 99, any casing) since 2026-07-05.
+- `send_lua(code, want_result=True)` — Tier 3 arbitrary code, separately gated as described above. `want_result=False` provides only a send result, not execution proof. Direct GPDF calls remain denied; dynamic Lua is not safely analyzed by regex.
 - `resolve_object_address(object_ref)` — enumerated address at runtime (they SHIFT between versions: Group 101 = `13.13...` on 2.3.2, `14.14.1.5.101` on 2.4.2 — never hardcode)
 - `list_plugins()` / `manual_lookup(keyword)` / `get_manual_summary()` / `get_showfile_snapshot()`
   - `manual_lookup` falls back to a bounded live word-boundary scan of the manual files when the curated index vocabulary misses (`source: grep-fallback` on those hits — the SaveShow gap, 2026-07-05)
 - `concept_lookup(keyword)` — search the WORKING/concepts knowledge base (ids, summaries, domains); exact-id or single match ships the full body (0.2.1)
 - `hook_add/remove/list/tail` — talk to the `alchemease_hooks` host api via the round-trip; `'host-not-active'` = host not Toggle-activated
 
-Tier 2 (gated: dry_run blocks absolutely; supervised needs a confirm_gate grant):
+Tier 2 (gated: dry_run blocks absolutely; supervised needs a confirm_gate grant when the default require_confirm_for_tier2=true is retained):
 
 - `confirm_gate(command, approve)` — time-boxed single-shot exact-match approvals (§5)
 - `install_plugin(name, lua_source, ...)` — REAL since 2026-07-05 (stub retired): validate → write pair → ReloadAllPlugins → Import → optional one-shot run; gate string binds name+slot+run+content-sha over both sources; ≥5 s cooldown under a TOCTOU lock; verify reads the pool slot back (Name must match)
@@ -52,9 +72,14 @@ Tier 2 (gated: dry_run blocks absolutely; supervised needs a confirm_gate grant)
 
 Still stubbed: `fire_sequence` (Tier 3 — pending confirm_gate + live-enable interlock per §5.6)
 
-CLI: `gma3-mcp probe` (exit 0 ⇔ console executed Lua) · `gma3-mcp query "expr"` · `gma3-mcp serve`
+CLI: `gma3-mcp probe` (fixed liveness code) · `gma3-mcp serve` (local stdio by default). The retained `query` command returns a migration error and sends nothing.
 
 ## Quickstart
+
+For installation without console contact, use the commands in
+[the agent quickstart](../docs/AGENT_QUICKSTART.md#local-mcp-setup).
+The following bootstrap explicitly includes a console probe.
+
 
 ```bash
 cd server                   # this directory (was WORKING/gma3-mcp-server-py in the show repo)
@@ -66,11 +91,10 @@ The venv lives OUTSIDE the repo (`~/.venvs/gma3-mcp`, override `GMA3_MCP_VENV`)
 (venvs aren't relocatable), and thousands of venv files don't belong in Drive
 sync anyway. Any `./.venv` you still see is a dead artifact; delete at will.
 
-Manual probe / query:
+Operator-requested fixed probe:
 
 ```bash
 GMA3_MCP_CONFIG="$PWD/config.yaml" ~/.venvs/gma3-mcp/bin/gma3-mcp probe
-GMA3_MCP_CONFIG="$PWD/config.yaml" ~/.venvs/gma3-mcp/bin/gma3-mcp query "tostring(Version())"
 ```
 
 ## Console-side requirements (all live-verified 2.4.2.2, 2026-07-04)
@@ -103,14 +127,28 @@ Done on Dave's Mac 2026-07-04 (backup saved next to the config):
 ```
 
 Restart Claude Desktop to load it, then in a chat: `get_console_info` → expect
-`lua_roundtrip_ok: true` with onPC open + session active; then
-`manual_lookup keyword="MAtricks"` and `send_lua code="tostring(Version())"`.
+`probe.lua_roundtrip_ok: true` with onPC open + session active. For an offline
+retrieval check, use `concept_lookup keyword="import-resolver-laws"`.
+`manual_lookup` needs a separately supplied manual index.
 
 ## Safety posture
 
-- Default mode `dry_run` — Tier 2+ refuses to send (verified in-process AND live: `install_plugin` dry-run returns a preview and touches nothing; approvals are never consulted).
-- Deny-list (LoadShow/Delete User/Network/Reset — word-boundary since 2026-07-04, so `Preset*` never trips `Reset`) intact through every path. SaveShow moved deny→Tier 2 on 2026-07-04 (save-before-big-moves discipline); LoadShow stays denied.
-- `GetPresetDataFast` is denied at `classify()` itself (tier 99, any casing, any command string) — every present and future tool inherits the ban (concept `gpdf-console-killer`).
+For raw Lua in `rehearsal` or `live`, the operator must create/refresh the file
+configured by `safety.live_enable_file` within `live_enable_freshness_seconds`,
+and authorize the exact command through the host before `confirm_gate` is called.
+The agent must not create its own interlock or self-authorize. Missing/stale
+interlocks and missing/expired/used approvals block the send. Keep one controlling
+session per console and serialize console tool calls, even within that session:
+the round-trip scratch filename is shared.
+
+The fixed probe executes Lua and writes/removes a scratch file; dry-run is not
+network isolation. Hooks alter the hook registry. The HTTP transport is loopback
+only and has no built-in authentication; use stdio for local agents.
+
+
+- Default mode `dry_run` — generic Lua and Tier 2+ installs refuse to send (verified in-process AND live: `install_plugin` dry-run returns a preview and touches nothing; approvals are never consulted).
+- Deny-list (LoadShow/Delete User/Network/Reset — word-boundary since 2026-07-04, so `Preset*` never trips `Reset`) checked as literal patterns in the classifier; these checks do not sandbox executable code. SaveShow moved deny→Tier 2 on 2026-07-04 (save-before-big-moves discipline); LoadShow stays denied.
+- `GetPresetDataFast` is denied at `classify()` itself (tier 99, any casing, any command string) — direct literal calls through that classifier are rejected; constructed names and arbitrary plugin code are not proven safe (concept `gpdf-console-killer`).
 - **Deny-word plugin names are un-approvable BY DESIGN (fail-closed).** The gate string `InstallPlugin <name> …` passes through `classify()`, and its word-boundary deny scan catches deny words inside the name (e.g. `reset_tool`) → tier 99 → `confirm_gate` refuses ("cannot approve a denied/unknown command"). There is deliberately no operator override path — rename the plugin instead.
 - Tier 3 (`fire_sequence`) remains a stub pending the live-enable interlock (spec §5.6).
 

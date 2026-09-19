@@ -20,7 +20,7 @@ ma3:
     mode: "local"
     plugin_install_dir: "~/MALightingTechnology/gma3_library/datapools/plugins"
     macro_install_dir: "~/MALightingTechnology/gma3_library/datapools/macros"
-    generated_path: "WORKING/generated/ma3"
+    generated_path: "~/.local/share/the3-mcp/generated"
     snapshot_export_path: "~/MALightingTechnology/gma3_library/alchemease_snapshot.json"
     # Lua-file round-trip exchange dir — MUST be the console's gma3_library
     # (= GetPath(Enums.PathType.Library) on the MA3 side). Single-machine
@@ -29,7 +29,7 @@ ma3:
     runtime_path_resolution: true
 
 safety:
-  default_mode: "dry_run"          # dry_run | rehearsal | live
+  default_mode: "dry_run"          # dry_run | rehearsal | live (raw Lua requires operator interlock + approval)
   require_confirm_for_tier2: true
   require_confirm_for_tier3: true
   elicitation_first: true
@@ -48,9 +48,9 @@ safety:
   fire_per_sec: 10
 
 resources:
-  manual_index: "MA_V2.4.2_MANUAL/INDEX.search.json"
-  api_dump:    "WORKING/generated/ma3/snapshots/api_dump_latest.json"
-  concepts_dir: "concepts"           # knowledge base for concept_lookup (INDEX.md + bodies) — resolves against the repo root (this file's parent dirs)
+  manual_index: null   # optional: absolute path to your separately built manual index
+  api_dump: null       # optional: your own console API export
+  concepts_dir: "../concepts"  # included corpus, relative to this config file
 
 framework:
   language: "python"

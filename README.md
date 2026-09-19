@@ -5,6 +5,9 @@ one show cycle by a lighting director working with an AI co-programmer against a
 Every console claim here was **observed, censused, and version-stamped** — recorded because it
 happened, not because it sounded right.
 
+**For Codex, Claude, and other agents:** start with [the agent quickstart](docs/AGENT_QUICKSTART.md).
+The corpus is usable without MCP; console access is optional and operator-supervised.
+
 **Attested against: grandMA3 onPC 2.4.2.2 (Mac), 2026.** Consoles change — re-verify on yours.
 
 > A story in this corpus is a stored value: the miss that drew the rule's edge, the receipt that
@@ -32,7 +35,7 @@ Full text: `RELEASE_NOTES.md` §Read before you run.
 |---|---|---|
 | `concepts/` | **The corpus — 361 files, one per verified console truth or method law.** `INDEX.md` (one line per concept, searchable) · `SPINE.md` (whole-load view of the programmer core). Both generated — never hand-edit. | CC BY 4.0 |
 | `playbook/` | The operating system: cards, smith specs, the song-build runbook, the librarian, worker briefs, `console-hard-rules.md`, `COLD_BOOT.md`. | CC BY 4.0 |
-| `skills/` | Six installable doorway skills — the session rituals and the firing gates (`ma3-run-session`, `ma3-desk-session`, `ma3-phaser-workup`, three `*-gate` skills). | CC BY 4.0 |
+| `skills/` | One portable `ma3-assistant/SKILL.md` entry skill, plus six historical workflow references requiring show-specific inputs. | CC BY 4.0 |
 | `case-study/` | **`SONG_M_BUILD.md`** — one song, cold start to heard-under-timecode in one session, with the real numbers. The worked example for everything above. | CC BY 4.0 |
 | `docs/` | Two draft resource papers: `MA3_AGENT_KNOWLEDGE_SYSTEM_v0.1.md` (why the corpus is shaped this way; the system it feeds) · `GDTF_MVR_PATCH_PIPELINE_v0.1.md` (the next build; unverified on console, and says so). | CC BY 4.0 |
 | `server/` | MCP server exposing bounded console/onPC control to an agent: tiered safety, deny-list, Lua-file round-trip transport, `concept_lookup` over `concepts/`. | Apache-2.0 |
@@ -46,20 +49,17 @@ Full text: `RELEASE_NOTES.md` §Read before you run.
 ("strobe", "timecode", "import failed"), open the body at `concepts/<id>.md`. Or follow
 `READING_ORDER.md` into a chat.
 
-**MCP server** (Python ≥3.12; a Mac running onPC is the tested host):
+**MCP server** (Python ≥3.12; local stdio). Follow
+[the agent quickstart](docs/AGENT_QUICKSTART.md#local-mcp-setup) to install, run an
+offline protocol check, and register the server in Codex, Claude Desktop, or
+another local MCP host. The console-side setup is in `server/README.md`.
 
-```bash
-cd server
-cp config.example.yaml config.yaml        # then set the console's IP/ports; concepts_dir already points at ../concepts
-bash setup_and_probe.sh                   # venv at ~/.venvs/gma3-mcp + install + tests + probe
-```
-
-Wiring into Claude Desktop, console-side OSC settings, the safety tiers, and the transport truths
-that were paid for: `server/README.md`.
-
-**Skills.** Each `skills/*.SKILL.md` is a self-contained skill file. Install it the way your agent
-host installs skills (copy into its skills directory, or attach as project knowledge). Start with
-`ma3-run-session` — it is the boot ritual the others assume.
+**Skills.** Start with `skills/ma3-assistant/SKILL.md`. Hosts use different
+skill discovery mechanisms; the quickstart documents Codex's folder layout and
+plain-context use elsewhere. The six loose `skills/*.SKILL.md` files preserve
+the original show workflow; they are not self-contained installations for a new
+show. Their missing project records, goldens, and populations must be supplied
+or adapted, never assumed.
 
 **Verify before trusting:** `python3 tools/make_manifest.py --verify`.
 

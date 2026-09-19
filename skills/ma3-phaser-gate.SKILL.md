@@ -3,6 +3,18 @@ name: ma3-phaser-gate
 description: Authoring gate for grandMA3 phaser and preset XML plus any pool-stored phase math. Use BEFORE authoring or verifying baked phaser presets, color presets, recipe presets, or storing MAtricks phase values. Triggers on PhaserRecipe, phaser steps, Measure, Speed encoding, ColorRGB, phase spread, MAtricks phase.
 ---
 
+> **Historical workflow reference.** This file records the original show's
+> session or authoring procedure. Start with
+> [the portable agent quickstart](../docs/AGENT_QUICKSTART.md) and
+> `skills/ma3-assistant/SKILL.md` for a new agent or show. Keep your own identity;
+> `cLD`/Claude and Dave describe historical roles, not required products or users.
+> The quickstart translates the old `WORKING/`, `agents/`, and `generated/`
+> paths. Private memory/state files, show packets, bindings, and golden exports
+> named below are not supplied: use the operator's actual inputs and report
+> missing prerequisites. Show-specific slot numbers and fixture populations are
+> examples, not addresses to copy. The console clearance, checkpoint, and
+> read-back gates still apply; this reference does not authorize console contact.
+
 # MA3 Phaser / Preset Authoring Gate
 
 Structural gate (repo law: `WORKING/AGENT_LANES_SPEC_v0.1.md`): no phaser/preset XML and no pool-stored phase values until the dialect and the math are armed. Paths relative to the MA_PROGRAMMING repo's `WORKING/` folder.

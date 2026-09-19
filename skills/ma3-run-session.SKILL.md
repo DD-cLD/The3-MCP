@@ -1,7 +1,19 @@
 ---
 name: ma3-run-session
-description: {TOUR} / MA3_PROGRAMMING session operating system — lean boot, session shape, the per-song loop, findings capture, single exit gate + matched wrap. Use at the START of every MA3 session and again at wrap. Triggers on session start, boot, kickoff, rehydrate, proceed with next actions, wrap, exit, state pair, {TOUR}, MA3 session.
+description: "{TOUR} / MA3_PROGRAMMING session operating system — lean boot, session shape, the per-song loop, findings capture, single exit gate + matched wrap. Use at the START of every MA3 session and again at wrap. Triggers on session start, boot, kickoff, rehydrate, proceed with next actions, wrap, exit, state pair, {TOUR}, MA3 session."
 ---
+
+> **Historical workflow reference.** This file records the original show's
+> session or authoring procedure. Start with
+> [the portable agent quickstart](../docs/AGENT_QUICKSTART.md) and
+> `skills/ma3-assistant/SKILL.md` for a new agent or show. Keep your own identity;
+> `cLD`/Claude and Dave describe historical roles, not required products or users.
+> The quickstart translates the old `WORKING/`, `agents/`, and `generated/`
+> paths. Private memory/state files, show packets, bindings, and golden exports
+> named below are not supplied: use the operator's actual inputs and report
+> missing prerequisites. Show-specific slot numbers and fixture populations are
+> examples, not addresses to copy. The console clearance, checkpoint, and
+> read-back gates still apply; this reference does not authorize console contact.
 
 # MA3 Run Session — the operating system
 

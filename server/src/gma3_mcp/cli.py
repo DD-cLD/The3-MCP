@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import logging
 import sys
@@ -40,20 +39,21 @@ def cmd_probe(args) -> int:
 
 
 def cmd_query(args) -> int:
-    cfg = load_config(args.config)
-    rt = _make_rt(cfg)
-    try:
-        r = rt.query(args.expr, timeout=args.timeout)
-    except ValueError as e:
-        print(json.dumps({"ok": False, "error": f"transport-unsafe Lua: {e}"}, indent=2))
-        return 2
-    print(json.dumps(dataclasses.asdict(r), indent=2, default=str))
-    return 0 if r.ok else 1
+    # Expressions can mutate state or fire playback; CLI has no approval
+    # registry/session. Keep the command only to explain the safer migration.
+    print(json.dumps({
+        "ok": False,
+        "sent": False,
+        "error": "CLI query is disabled: arbitrary Lua requires supervised approval. "
+                 "Use MCP send_lua with confirm_gate and a fresh operator-created "
+                 "live-enable file. Use probe for fixed console identity.",
+    }, indent=2))
+    return 2
 
 
 def cmd_serve(args) -> int:
     from .server import main_serve
-    main_serve(transport=args.transport, port=args.port)
+    main_serve(transport=args.transport, port=args.port, cfg=load_config(args.config))
     return 0
 
 
@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     sp_probe.add_argument("--timeout", type=float, default=2.5)
     sp_probe.set_defaults(func=cmd_probe)
 
-    sp_query = sub.add_parser("query", help='Evaluate a Lua expression on the console, e.g. gma3-mcp query "1+1"')
+    sp_query = sub.add_parser("query", help="Disabled: use gated MCP send_lua; use probe for fixed console identity")
     sp_query.add_argument("expr", help="Lua expression (single line, single quotes only, no ; or \\)")
     sp_query.add_argument("--timeout", type=float, default=4.0)
     sp_query.set_defaults(func=cmd_query)
