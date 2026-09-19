@@ -1,0 +1,60 @@
+# gma3-mcp config — see MA3_MCP_Server_Spec_v2.1.md §9
+# (OSC round-trip sections of the spec corrected 2026-07-04: MA3 never echoes
+#  command results over OSC; queries ride the Lua-file round-trip instead.)
+ma3:
+  target_name: "my-console"
+  host: "127.0.0.1"
+  software_version: "2.4.2"        # onPC upgraded 2.3.2 → 2.4.2.2 (2026-07-04)
+  data_version: "2.4.2.2"          # full 4-part version stamped into generated plugin XML (DataVersion=)
+
+  osc:
+    enabled: true
+    protocol: "udp"
+    out_port: 8000           # server → MA3 (OSC line: Receive=Yes, ReceiveCommand=Yes, Port=8000)
+    in_port: 8001            # OPTIONAL event-stream listener (two-machine rigs only)
+    cmd_address: "/cmd"
+    echo_listener: false     # MA3 emits NO command results over OSC — leave off on loopback
+                             # (once a session is active MA3 binds every OSC line's port itself)
+
+  filesystem:
+    mode: "local"
+    plugin_install_dir: "~/MALightingTechnology/gma3_library/datapools/plugins"
+    macro_install_dir: "~/MALightingTechnology/gma3_library/datapools/macros"
+    generated_path: "WORKING/generated/ma3"
+    snapshot_export_path: "~/MALightingTechnology/gma3_library/alchemease_snapshot.json"
+    # Lua-file round-trip exchange dir — MUST be the console's gma3_library
+    # (= GetPath(Enums.PathType.Library) on the MA3 side). Single-machine
+    # onPC dev only; two-machine rigs need the Phase-2 push-channel plugin.
+    roundtrip_dir: "~/MALightingTechnology/gma3_library"
+    runtime_path_resolution: true
+
+safety:
+  default_mode: "dry_run"          # dry_run | rehearsal | live
+  require_confirm_for_tier2: true
+  require_confirm_for_tier3: true
+  elicitation_first: true
+  live_enable_file: "~/.alchemease/ma3_mcp/LIVE_ENABLE"
+  live_enable_freshness_seconds: 60
+  approval_ttl_seconds: 300
+  deny_commands:
+    - "LoadShow"
+    # SaveShow moved deny→Tier 2 (2026-07-04): save-before-big-moves is the
+    # discipline; Tier 2 still blocks it in dry_run, supervised modes gate it.
+    - "Delete User"
+    - "Network"
+    - "Reset"
+  osc_rate_per_sec: 50
+  plugin_install_cooldown_seconds: 5
+  fire_per_sec: 10
+
+resources:
+  manual_index: "MA_V2.4.2_MANUAL/INDEX.search.json"
+  api_dump:    "WORKING/generated/ma3/snapshots/api_dump_latest.json"
+  concepts_dir: "concepts"           # knowledge base for concept_lookup (INDEX.md + bodies) — resolves against the repo root (this file's parent dirs)
+
+framework:
+  language: "python"
+  python_min: "3.12"
+  mcp_spec: "2025-11-25"
+  fastmcp: ">=3.3,<4"
+  transport: ["stdio", "streamable-http"]

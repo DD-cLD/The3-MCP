@@ -1,0 +1,34 @@
+# Never ships: the scrub law's working files, the inventory, the handoff, STATE.
+# This directory is how the public tree is BUILT; it is not part of the product.
+_internal/
+
+# Parked strays. The build sandbox blocks unlink, so files awaiting deletion are
+# moved here instead of removed.
+_to_delete/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Live config — carries local paths and a real console's network settings.
+# config.example.yaml is the one that ships.
+server/config.yaml
+config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+Icon?
+
+# Editors
+.idea/
+.vscode/
+*.swp
